@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no" />
 <meta name="color-scheme" content="dark" />
 <meta name="theme-color" content="#0b1712" />
 <!-- ホーム画面に追加して全画面で開くための宣言（iOS Safari / Android） -->
@@ -26,11 +26,20 @@
     --danger:#ff7a6b;
   }
   *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-  html,body{ height:100%; }
+  html,body{ width:100%; height:100%; overflow:hidden; }
+  html{
+    /* iOS Safari otherwise inflates text per-element in landscape, which
+       widens min-content sizes and can push the panels off screen */
+    -webkit-text-size-adjust:100%; text-size-adjust:100%;
+  }
   body{
+    /* fixed to the viewport: the document itself can never scroll or pan
+       sideways and get stuck offset, whatever the browser chrome does */
+    position:fixed; inset:0;
     margin:0; overflow:hidden; background:#0b1712; color:var(--ink);
     font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic UI","Yu Gothic",Meiryo,system-ui,sans-serif;
     user-select:none; -webkit-user-select:none; touch-action:none;
+    -webkit-text-size-adjust:100%; text-size-adjust:100%;
   }
   #app{ position:fixed; inset:0; }
   #app canvas{ display:block; width:100%; height:100%; }
@@ -68,7 +77,7 @@
     left:50%; transform:translateX(-50%);
     bottom:calc(env(safe-area-inset-bottom,0px) + 118px);
     font-size:13.5px; font-weight:600; color:var(--ink);
-    padding:6px 14px; white-space:nowrap; max-width:92vw; overflow:hidden; text-overflow:ellipsis;
+    padding:6px 14px; white-space:nowrap; max-width:calc(100% - 24px); overflow:hidden; text-overflow:ellipsis;
   }
   #objective b{ color:var(--accent); }
   @media (min-width:760px){ #objective{ bottom:26px; } }
@@ -146,12 +155,14 @@
     position:fixed; inset:0; z-index:40; display:none;
     align-items:center; justify-content:center; padding:22px;
     background:rgba(4,12,8,.78);
+    overflow:hidden; touch-action:pan-y;
   }
   #installSheet.open{ display:flex; }
   .install-panel{
-    width:100%; max-width:400px; background:rgba(7,18,13,.96); border:1px solid var(--plate-line);
+    width:100%; max-width:min(400px, 100%); min-width:0; background:rgba(7,18,13,.96); border:1px solid var(--plate-line);
     border-radius:16px; padding:22px; box-shadow:0 18px 50px rgba(0,0,0,.5);
-    max-height:calc(100vh - 44px); max-height:calc(100dvh - 44px); overflow-y:auto;
+    max-height:calc(100vh - 44px); max-height:calc(100dvh - 44px);
+    overflow-y:auto; overflow-x:hidden; touch-action:pan-y; overflow-wrap:anywhere;
   }
   .install-panel h2{ margin:0 0 10px; font-size:19px; letter-spacing:.02em; }
   .install-panel p{ margin:0 0 12px; color:var(--ink-dim); font-size:13.5px; line-height:1.7; }
@@ -182,7 +193,6 @@
   .enemy-hp .ehp-track{ height:7px; border-radius:4px; background:rgba(0,0,0,.55); border:1px solid rgba(255,255,255,.45); overflow:hidden; }
   .enemy-hp .ehp-fill{ height:100%; width:100%; background:#69e06f; border-radius:4px; transition:width .15s; }
   .enemy-hp.hurt .ehp-fill{ background:#ffb03a; }
-  .enemy-hp .ehp-pips{ font-size:9px; color:#ff6b7a; text-shadow:0 1px 3px rgba(0,0,0,.85); margin-top:1px; letter-spacing:2px; }
 
   /* ---------- game over ---------- */
   #gameoverOverlay{ display:none; }
@@ -234,14 +244,24 @@
     position:fixed; inset:0; z-index:20; display:flex; align-items:flex-end; justify-content:center;
     padding:18px 14px calc(env(safe-area-inset-bottom,0px) + 18px);
     background:linear-gradient(to top, rgba(4,12,8,.62), rgba(4,12,8,.08) 55%, rgba(4,12,8,.18));
+    overflow:hidden; touch-action:pan-y;
   }
   @media (min-width:760px){ .overlay{ align-items:center; } }
   .panel{
-    width:100%; max-width:430px; background:rgba(7,18,13,.82); border:1px solid var(--plate-line);
+    /* min-width:0 is essential: as a flex item the panel otherwise refuses
+       to shrink below its content's min-content width and overflows the
+       screen symmetrically (both edges cut) whenever that grows */
+    width:100%; max-width:min(430px, 100%); min-width:0;
+    background:rgba(7,18,13,.82); border:1px solid var(--plate-line);
     border-radius:16px; padding:22px 22px 20px; backdrop-filter:blur(10px);
     box-shadow:0 18px 50px rgba(0,0,0,.45);
     max-height:calc(100vh - 36px); max-height:calc(100dvh - 36px);
-    overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch;
+    /* overflow-x must be hidden explicitly: overflow-y:auto alone makes
+       overflow-x compute to auto too, letting the panel scroll sideways
+       and stay offset. pan-y keeps vertical scrolling but blocks the
+       pinch / double-tap page zoom that used to strand the layout. */
+    overflow-y:auto; overflow-x:hidden; overscroll-behavior:contain; -webkit-overflow-scrolling:touch;
+    touch-action:pan-y; overflow-wrap:anywhere;
   }
   .panel .landnote{
     margin:0 0 12px; padding:8px 12px; border:1px solid rgba(126,240,212,.35); border-radius:8px;
@@ -252,7 +272,7 @@
   @media (orientation:landscape) and (max-height:540px){
     .overlay{ align-items:center; padding:10px 12px; }
     .panel{
-      max-width:660px; padding:14px 18px 14px;
+      max-width:min(660px, 100%); padding:14px 18px 14px;
       max-height:calc(100vh - 20px); max-height:calc(100dvh - 20px);
     }
     .panel .kicker{ margin-bottom:3px; font-size:11px; }
@@ -304,7 +324,10 @@
   .panel .kicker{ color:var(--accent); font-size:12px; font-weight:800; letter-spacing:.22em; margin:0 0 6px; }
   .panel h1{ margin:0 0 8px; font-size:27px; line-height:1.25; letter-spacing:.02em; }
   .panel p.lead{ margin:0 0 14px; color:var(--ink-dim); font-size:14px; line-height:1.7; }
-  .howto{ display:grid; grid-template-columns:1fr 1fr; gap:8px 14px; margin:0 0 18px; font-size:12.5px; color:var(--ink-dim); line-height:1.55; }
+  .howto{ display:grid; grid-template-columns:1fr 1fr; gap:8px 14px; margin:0 0 18px; font-size:12.5px; color:var(--ink-dim); line-height:1.55; min-width:0; }
+  /* grid items also default to min-width:auto; without min-width:0 one
+     long entry inflates the whole panel's min-content width */
+  .howto > div{ min-width:0; overflow-wrap:anywhere; }
   .howto b{ color:var(--ink); display:block; font-size:12.5px; }
   .bigbtn{
     width:100%; min-height:52px; border:0; border-radius:12px; cursor:pointer;
@@ -381,7 +404,7 @@
       <div><b>歩く／ダッシュ</b>PC: WASD（Shiftでダッシュ）<br>スマホ: スティックの倒し具合で速度が変わる（大きく倒すとダッシュ）</div>
       <div><b>ジャンプ</b>PC: スペース<br>スマホ: ジャンプボタン</div>
       <div><b>体力</b>ハート5個。敵の攻撃1回で半分減り、10回でゲームオーバー</div>
-      <div><b>敵の体力</b>頭上のゲージと♥表示。剣2回で撃破</div>
+      <div><b>敵の体力</b>頭上のゲージで表示。剣2回で撃破</div>
     </div>
     <button class="bigbtn" id="btnStart" type="button">探索をはじめる</button>
   </div>
@@ -453,9 +476,34 @@
 (function(){
 "use strict";
 var errBox = document.getElementById('errBox');
-function showErr(msg){ errBox.style.display='block'; errBox.textContent = 'エラー: ' + msg; }
-window.addEventListener('error', function(e){ showErr(e.message || String(e.error||'unknown')); });
-window.addEventListener('unhandledrejection', function(e){ showErr('Promise: ' + (e.reason && e.reason.message || e.reason)); });
+function showErr(msg){
+  if (!msg) return;
+  errBox.style.display='block'; errBox.textContent = 'エラー: ' + msg;
+}
+/* Browsers report errors from scripts the page does not own (cross-origin
+   scripts, browser-injected code such as the machinery iOS runs when the
+   Safari share sheet opens, extensions) as a bare "Script error." with
+   the message, file and stack all withheld. The game's own scripts are
+   all same-origin, so their errors always carry real details; a
+   detail-less "Script error." can therefore never be a game error, and
+   must not raise the red banner — it used to appear, misleadingly, when
+   the browser's share button was pressed. Real errors still show. */
+function isDetailLessScriptError(e){
+  var msg = (e && e.message) || '';
+  if (msg && msg !== 'Script error.' && msg !== 'Script error') return false;
+  /* no usable message: only treat it as noise when there is also no
+     error object and no source file to go on */
+  return !(e && (e.error || e.filename));
+}
+window.addEventListener('error', function(e){
+  if (isDetailLessScriptError(e)) return;
+  showErr(e.message || String(e.error || 'unknown'));
+});
+window.addEventListener('unhandledrejection', function(e){
+  var msg = e.reason && e.reason.message || (typeof e.reason === 'string' ? e.reason : '');
+  if (!msg || msg === 'Script error.' || msg === 'Script error') return;
+  showErr('Promise: ' + msg);
+});
 
 if (typeof THREE === 'undefined'){ showErr('three.js の読み込みに失敗しました'); return; }
 
@@ -1004,7 +1052,7 @@ function makeEnemy(spot, idx){
   scene.add(grp);
   var bar = document.createElement('div');
   bar.className = 'enemy-hp';
-  bar.innerHTML = '<div class="ehp-name">スライム</div><div class="ehp-track"><div class="ehp-fill"></div></div><div class="ehp-pips">♥♥</div>';
+  bar.innerHTML = '<div class="ehp-name">スライム</div><div class="ehp-track"><div class="ehp-fill"></div></div>';
   document.getElementById('enemyHpLayer').appendChild(bar);
   enemies.push({
     grp:grp, body:body, mat:mat, gel:gel, skirt:skirt, stemBase:stemBase, stemTip:stemTip,
@@ -1012,7 +1060,7 @@ function makeEnemy(spot, idx){
     home:{x:spot.x, z:spot.z}, tx:spot.x, tz:spot.z, wait:idx*0.4,
     phase:idx*1.13, kbx:0, kbz:0, speed:1.0 + (idx%3)*0.22,
     atkCd:0.8 + idx*0.25, lungeT:-1, lungeHitDone:true, lungeDx:0, lungeDz:1,
-    bar:bar, barFill:bar.querySelector('.ehp-fill'), barPips:bar.querySelector('.ehp-pips'), barHp:-1
+    bar:bar, barFill:bar.querySelector('.ehp-fill'), barHp:-1
   });
 }
 enemySpots.forEach(makeEnemy);
@@ -1761,7 +1809,6 @@ function updateEnemyHpBars(){
       en.barHp = en.hp;
       en.barFill.style.width = (en.hp/2*100) + '%';
       en.bar.classList.toggle('hurt', en.hp === 1);
-      en.barPips.textContent = en.hp === 2 ? '♥♥' : '♥♡';
     }
   }
 }
@@ -2226,11 +2273,68 @@ function frame(now){
 }
 requestAnimationFrame(frame);
 
-window.addEventListener('resize', function(){
-  camera.aspect = innerWidth/innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
-});
+/* ================= viewport fit / layout recovery =================
+   The start panel intermittently rendered wider than the screen and then
+   stayed that way: iOS can fire resize before the new viewport has
+   settled after a rotation, a panel can keep a horizontal scroll offset,
+   and a stray page zoom/scroll was never undone. So refitting is not a
+   single resize listener: it re-runs (with delayed retries) on resize,
+   orientationchange, visualViewport changes, pageshow (bfcache) and
+   fullscreen changes, and always re-centres the page and the panels. */
+var scrollPanels = document.querySelectorAll('.panel, .install-panel');
+function fitViewport(resetPanelScroll){
+  var w = window.innerWidth, h = window.innerHeight;
+  if (w > 0 && h > 0){
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    renderer.setSize(w, h);
+  }
+  if (window.scrollX || window.scrollY) window.scrollTo(0, 0);
+  for (var i = 0; i < scrollPanels.length; i++){
+    if (scrollPanels[i].scrollLeft) scrollPanels[i].scrollLeft = 0;
+    if (resetPanelScroll && scrollPanels[i].scrollTop) scrollPanels[i].scrollTop = 0;
+  }
+}
+var fitRetryTimers = [];
+function fitViewportSoon(resetPanelScroll){
+  fitViewport(resetPanelScroll);
+  for (var i = 0; i < fitRetryTimers.length; i++) clearTimeout(fitRetryTimers[i]);
+  fitRetryTimers = [
+    setTimeout(function(){ fitViewport(resetPanelScroll); }, 80),
+    setTimeout(function(){ fitViewport(resetPanelScroll); }, 350),
+    setTimeout(function(){ fitViewport(resetPanelScroll); }, 800)
+  ];
+}
+window.addEventListener('resize', function(){ fitViewport(false); });
+window.addEventListener('orientationchange', function(){ fitViewportSoon(true); });
+window.addEventListener('pageshow', function(){ fitViewportSoon(true); });
+window.addEventListener('load', function(){ fitViewportSoon(false); });
+document.addEventListener('fullscreenchange', function(){ fitViewportSoon(false); });
+document.addEventListener('webkitfullscreenchange', function(){ fitViewportSoon(false); });
+if (window.visualViewport){
+  var vvFitQueued = false;
+  window.visualViewport.addEventListener('resize', function(){
+    if (vvFitQueued) return;
+    vvFitQueued = true;
+    requestAnimationFrame(function(){ vvFitQueued = false; fitViewport(false); });
+  });
+}
+/* iOS Safari ignores user-scalable=no, so block the pinch / double-tap
+   page zoom directly: a zoomed page stays zoomed across rotations and
+   leaves the fixed panels cropped with no way back. Game input uses
+   pointer events on elements with touch-action set, so this does not
+   affect play. */
+document.addEventListener('gesturestart', function(e){ e.preventDefault(); });
+document.addEventListener('gesturechange', function(e){ e.preventDefault(); });
+document.addEventListener('dblclick', function(e){ e.preventDefault(); });
+var lastTouchEnd = 0;
+document.addEventListener('touchend', function(e){
+  var now = performance.now();
+  var onButton = e.target && e.target.closest && e.target.closest('button');
+  if (!onButton && now - lastTouchEnd < 320) e.preventDefault();
+  lastTouchEnd = now;
+}, { passive:false });
+fitViewport(false);
 setObjective();
 })();
 </script>
